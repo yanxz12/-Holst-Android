@@ -1,0 +1,55 @@
+name: Build Holst APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Extract project
+        run: |
+          mkdir extracted
+          unzip -q Holst.zip -d extracted
+          find extracted -name settings.gradle.kts
+
+      - name: Build debug APK
+        run: |
+          PROJECT_DIR=$(dirname "$(find extracted -name settings.gradle.kts -print -quit)")
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: settings.gradle.kts tidak ditemukan"
+            exit 1
+          fi
+          cd "$PROJECT_DIR"
+          if [ -f ./gradlew ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          else
+            echo "ERROR: Gradle wrapper tidak ditemukan."
+            echo "Project perlu diperiksa sebelum build."
+            exit 1
+          fi
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Holst-APK
+          path: extracted/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
